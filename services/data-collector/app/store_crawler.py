@@ -53,6 +53,11 @@ class StoreCrawler:
                         method = cols[2].get_text(strip=True)  # 자동/수동
                         address = cols[3].get_text(strip=True)
                         
+                        # URL이나 잘못된 판매점 이름 필터링
+                        if self._is_invalid_store_name(store_name):
+                            logger.warning(f"잘못된 판매점 이름 스킵: {store_name}")
+                            continue
+                        
                         # 지역 추출
                         region = self._extract_region(address)
                         
@@ -86,6 +91,23 @@ class StoreCrawler:
         except Exception as e:
             logger.error(f"판매점 크롤링 실패: {e}")
             return {'success': False, 'error': str(e)}
+    
+    def _is_invalid_store_name(self, store_name):
+        """잘못된 판매점 이름 체크 (URL 등)"""
+        if not store_name or len(store_name) < 2:
+            return True
+        
+        # URL 패턴 체크
+        invalid_patterns = [
+            'http://', 'https://', '.co.kr', '.com', '.net',
+            'dhlottery', 'www.', '://'
+        ]
+        
+        for pattern in invalid_patterns:
+            if pattern in store_name.lower():
+                return True
+        
+        return False
     
     def _extract_region(self, address):
         """주소에서 지역 추출"""
@@ -239,6 +261,10 @@ class StoreCrawler:
                             store_name = cols[1].get_text(strip=True)
                             method = cols[2].get_text(strip=True)
                             address = cols[3].get_text(strip=True)
+                            
+                            # URL이나 잘못된 판매점 이름 필터링
+                            if self._is_invalid_store_name(store_name):
+                                continue
                             
                             region = self._extract_region(address)
                             

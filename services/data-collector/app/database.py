@@ -22,7 +22,13 @@ class Database:
                 host=self.host,
                 user=self.user,
                 password=self.password,
-                database=self.database
+                database=self.database,
+                pool_name="lotto_pool",
+                pool_size=5,
+                pool_reset_session=True,
+                autocommit=False,
+                connect_timeout=10,
+                use_pure=True
             )
             if self.connection.is_connected():
                 logger.info("MySQL 데이터베이스 연결 성공")
@@ -191,28 +197,34 @@ class Database:
     
     def get_top_stores(self, limit=100):
         """상위 판매점 조회"""
-        if not self.connection or not self.connection.is_connected():
-            self.connect()
-        
-        cursor = None
-        try:
-            cursor = self.connection.cursor(dictionary=True)
-            query = """
-                SELECT store_id, store_name, address, region,
-                       wins_1st, wins_2nd, total_wins, `rank`
-                FROM lotto_stores
-                ORDER BY `rank` ASC, total_wins DESC
-                LIMIT %s
-            """
-            cursor.execute(query, (limit,))
-            results = cursor.fetchall()
-            return results
-        except Error as e:
-            logger.error(f"판매점 조회 실패: {e}")
-            return []
-        finally:
-            if cursor:
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if not self.connection or not self.connection.is_connected():
+                    self.connect()
+                
+                cursor = self.connection.cursor(dictionary=True)
+                query = """
+                    SELECT store_id, store_name, address, region,
+                           wins_1st, wins_2nd, total_wins, `rank`
+                    FROM lotto_stores
+                    ORDER BY `rank` ASC, total_wins DESC
+                    LIMIT %s
+                """
+                cursor.execute(query, (limit,))
+                results = cursor.fetchall()
                 cursor.close()
+                return results
+            except Error as e:
+                logger.error(f"판매점 조회 실패 (시도 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    self.disconnect()
+                    self.connect()
+                else:
+                    return []
+            except Exception as e:
+                logger.error(f"예상치 못한 오류: {e}")
+                return []
     
     def get_stores_by_region(self, region):
         """지역별 판매점 조회"""
@@ -241,19 +253,25 @@ class Database:
     
     def get_region_stats(self):
         """지역별 통계"""
-        if not self.connection or not self.connection.is_connected():
-            self.connect()
-        
-        cursor = None
-        try:
-            cursor = self.connection.cursor(dictionary=True)
-            query = "SELECT * FROM v_region_stats"
-            cursor.execute(query)
-            results = cursor.fetchall()
-            return results
-        except Error as e:
-            logger.error(f"지역별 통계 조회 실패: {e}")
-            return []
-        finally:
-            if cursor:
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                if not self.connection or not self.connection.is_connected():
+                    self.connect()
+                
+                cursor = self.connection.cursor(dictionary=True)
+                query = "SELECT * FROM v_region_stats"
+                cursor.execute(query)
+                results = cursor.fetchall()
                 cursor.close()
+                return results
+            except Error as e:
+                logger.error(f"지역별 통계 조회 실패 (시도 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    self.disconnect()
+                    self.connect()
+                else:
+                    return []
+            except Exception as e:
+                logger.error(f"예상치 못한 오류: {e}")
+                return []

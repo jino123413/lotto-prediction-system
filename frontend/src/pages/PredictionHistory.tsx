@@ -312,9 +312,6 @@ export default function PredictionHistory() {
                     <span className="text-sm text-slate-500">
                       {formatDate(prediction.createdAt || prediction.date)}
                     </span>
-                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded">
-                      신뢰도 {prediction.confidence}%
-                    </span>
                   </div>
 
                   <div className="flex gap-2 mb-3 flex-wrap">

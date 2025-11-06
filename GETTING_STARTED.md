@@ -2,6 +2,14 @@
 
 로또 예측 시스템을 처음 시작하는 분들을 위한 가이드입니다.
 
+## 🎉 현재 상태: 프로덕션 100% 완성
+
+- ✅ 9개 컨테이너 모두 정상 작동 중
+- ✅ 프론트엔드 9개 페이지 완성
+- ✅ AI 기반 5가지 예측 방식
+- ✅ 지역별 판매점 지도 시각화
+- ✅ 1,196개 회차 + 1,369개 판매점 데이터
+
 ## 1단계: 환경 확인
 
 ### 필수 소프트웨어
@@ -40,7 +48,7 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 # 프로젝트 디렉토리로 이동
 cd /home/jh/lotto-prediction-system
 
-# 백그라운드에서 모든 서비스 시작
+# 백그라운드에서 모든 서비스 시작 (9개 컨테이너)
 docker-compose up -d
 
 # 로그 확인 (전체)
@@ -50,16 +58,32 @@ docker-compose logs -f
 docker-compose logs -f data-collector-service
 ```
 
+### 프로덕션 접속
+```bash
+# 프론트엔드
+http://192.168.44.128
+
+# API Gateway
+http://192.168.44.128/api/
+
+# Nginx Proxy Manager (관리 페이지)
+http://192.168.44.128:81
+```
+
 ### 서비스 상태 확인
 ```bash
-# 실행 중인 컨테이너 확인
+# 실행 중인 컨테이너 확인 (9개)
 docker-compose ps
 
 # 헬스 체크
-curl http://localhost:8000/health
-curl http://localhost:8001/health
-curl http://localhost:8002/health
-curl http://localhost:8003/health
+curl http://localhost:8000/health  # API Gateway
+curl http://localhost:8001/health  # Data Collector
+curl http://localhost:8002/health  # Statistics
+curl http://localhost:8003/health  # ML Prediction
+curl http://localhost:8004/health  # User Service
+
+# 프론트엔드 확인
+curl http://192.168.44.128
 ```
 
 ## 4단계: API 테스트
@@ -67,45 +91,59 @@ curl http://localhost:8003/health
 ### 데이터 수집 테스트
 ```bash
 # 최신 5회 당첨 번호 조회
-curl http://localhost:8001/latest
+curl http://192.168.44.128/api/data/latest
 
 # 전체 회차 개수 확인
-curl http://localhost:8001/stats/count
+curl http://192.168.44.128/api/data/count
+
+# 판매점 통계 (지역별) ⭐ NEW
+curl http://192.168.44.128/api/data/stores/stats/region
+
+# 판매점 TOP 100
+curl http://192.168.44.128/api/data/stores/top
 ```
 
 ### 통계 분석 테스트
 ```bash
 # 빈도 분석
-curl http://localhost:8002/frequency
+curl http://192.168.44.128/api/stats/frequency
 
 # 패턴 분석
-curl http://localhost:8002/patterns
+curl http://192.168.44.128/api/stats/patterns
 
 # 히트맵 데이터
-curl http://localhost:8002/heatmap
+curl http://192.168.44.128/api/stats/heatmap
+
+# 전체 통계
+curl http://192.168.44.128/api/stats/statistics
 ```
 
 ### ML 예측 테스트
 ```bash
-# 단일 예측 (Random Forest)
-curl -X POST http://localhost:8003/predict \
-  -H "Content-Type: application/json" \
-  -d '{"method": "random_forest"}'
-
-# 5가지 조합 예측
-curl -X POST http://localhost:8003/predict-multiple \
+# 5가지 조합 예측 (Random Forest, XGBoost, Ensemble, 통계 기반)
+curl -X POST http://192.168.44.128/api/predict/predict-multiple \
   -H "Content-Type: application/json"
-```
 
-### API Gateway를 통한 접근
-```bash
-# API Gateway를 통한 통계 조회
-curl http://localhost:8000/api/stats/frequency
-
-# API Gateway를 통한 예측
-curl -X POST http://localhost:8000/api/predict/predict \
+# 단일 예측 (Ensemble)
+curl -X POST http://192.168.44.128/api/predict/predict \
   -H "Content-Type: application/json" \
   -d '{"method": "ensemble"}'
+
+# 모델 정보
+curl http://192.168.44.128/api/predict/model-info
+```
+
+### 사용자 인증 테스트 ⭐ NEW
+```bash
+# 회원가입
+curl -X POST http://192.168.44.128/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"test1234","email":"test@test.com"}'
+
+# 로그인
+curl -X POST http://192.168.44.128/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"test1234"}'
 ```
 
 ## 5단계: 데이터베이스 확인
@@ -250,13 +288,15 @@ docker-compose up -d
 3. 대시보드 (Grafana)
 4. 알림 시스템
 
-## 다음 단계
+## ✅ 완료된 기능
 
-1. **Frontend 개발**: React 컴포넌트 구현
-2. **User Service 완성**: Spring Boot 코드 작성
-3. **ML 모델 학습**: 실제 데이터로 모델 훈련
-4. **테스트 작성**: 단위/통합 테스트
-5. **CI/CD 구축**: 자동 배포 파이프라인
+1. ✅ **Frontend 개발**: 9개 페이지 완성
+2. ✅ **User Service**: Spring Boot 3.1.5 + JWT 인증
+3. ✅ **ML 모델**: 5가지 예측 방식 구현
+4. ✅ **판매점 시각화**: 지도 기반 인터랙티브 UI
+5. ✅ **프로덕션 배포**: Nginx Proxy Manager 설치
+
+
 
 ## 참고 자료
 
@@ -272,4 +312,7 @@ docker-compose up -d
 2. GitHub Issues에 버그 리포트 작성
 3. 커뮤니티 포럼에 질문
 
-즐거운 개발 되세요! 🚀
+프로덕션 배포 완료! 🎉
+
+**최종 업데이트**: 2025-11-07  
+**프로젝트 상태**: ✅ 100% 완성 (Phase 7.9)

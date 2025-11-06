@@ -21,22 +21,22 @@
 ./crawl-lotto.sh 1 1196
 ```
 
-### 2. `crawl_manual.py` (선택)
+### 2. `crawl-lotto.py` (선택)
 **로컬 Python 환경에서 직접 실행**
 
 ```bash
-# 위치: /home/jh/lotto-prediction-system/services/data-collector/crawl_manual.py
+# 위치: /home/jh/lotto-prediction-system/services/data-collector/app/crawl-lotto.py
 
 cd services/data-collector
 
 # 최신 회차 1개 크롤링
-python3 crawl_manual.py
+python3 crawl-lotto.py
 
 # 특정 회차 크롤링
-python3 crawl_manual.py 1196
+python3 crawl-lotto.py 1196
 
 # 범위 크롤링
-python3 crawl_manual.py 1180 1196
+python3 crawl-lotto.py 1180 1196
 ```
 
 **주의**: Python 환경에 필요한 패키지가 설치되어 있어야 합니다:
@@ -120,7 +120,7 @@ cd /home/jh/lotto-prediction-system
 sudo docker-compose -f docker-compose-simple.yml up -d data-collector-service
 ```
 
-### Python 패키지 없는 경우 (crawl_manual.py)
+### Python 패키지 없는 경우 (crawl-lotto.py)
 ```bash
 cd services/data-collector
 pip install -r requirements.txt
@@ -129,7 +129,7 @@ pip install -r requirements.txt
 ### 권한 오류
 ```bash
 chmod +x crawl-lotto.sh
-chmod +x services/data-collector/crawl_manual.py
+chmod +x services/data-collector/app/crawl-lotto.py
 ```
 
 ---

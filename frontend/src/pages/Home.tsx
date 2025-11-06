@@ -158,7 +158,7 @@ export default function Home() {
                   <div key={idx} className="p-5 bg-white rounded-xl border-2 border-slate-200 hover:border-indigo-300 transition-all shadow-sm hover:shadow-md">
                     <div className="mb-4">
                       <h4 className="font-bold text-slate-900 text-lg">{pred.method}</h4>
-                      <p className="text-sm text-indigo-600 font-semibold">신뢰도: {pred.confidence.toFixed(1)}%</p>
+                      <p className="text-sm text-indigo-600 font-semibold">추천 {idx + 1}순위</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {pred.numbers.map((num: number) => renderNumber(num))}
