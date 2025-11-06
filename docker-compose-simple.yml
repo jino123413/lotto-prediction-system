@@ -1,0 +1,114 @@
+version: '3.3'
+
+networks:
+  lotto-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+
+services:
+  # Redis 세션 서버
+  redis-session:
+    image: redis:7-alpine
+    container_name: redis-session
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=development
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis-session
+      - REDIS_PORT=6379
+    depends_on:
+      - redis-session
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 데이터 수집 서비스
+  data-collector-service:
+    build:
+      context: ./services/data-collector
+      dockerfile: Dockerfile
+    container_name: data-collector-service
+    ports:
+      - "8001:8001"
+    environment:
+      - FLASK_ENV=development
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 통계 분석 서비스
+  statistics-service:
+    build:
+      context: ./services/statistics
+      dockerfile: Dockerfile
+    container_name: statistics-service
+    ports:
+      - "8002:8002"
+    environment:
+      - FLASK_ENV=development
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - REDIS_HOST=redis-session
+      - REDIS_PORT=6379
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis-session
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # ML 예측 서비스
+  ml-prediction-service:
+    build:
+      context: ./services/ml-prediction
+      dockerfile: Dockerfile
+    container_name: ml-prediction-service
+    ports:
+      - "8003:8003"
+    environment:
+      - FLASK_ENV=development
+      - MYSQL_HOST=host.docker.internal
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - REDIS_HOST=redis-session
+      - REDIS_PORT=6379
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis-session
+    volumes:
+      - ./services/ml-prediction/models:/app/models
+    networks:
+      - lotto-network
+    restart: unless-stopped

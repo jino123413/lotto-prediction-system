@@ -1,0 +1,190 @@
+version: '3.3'
+
+networks:
+  lotto-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  npm-data:
+  npm-ssl:
+  npm-db:
+
+services:
+  # Nginx Proxy Manager - 웹 GUI 관리
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    ports:
+      - '80:80'      # HTTP
+      - '443:443'    # HTTPS
+      - '81:81'      # 관리 페이지
+    environment:
+      DB_SQLITE_FILE: "/data/database.sqlite"
+    volumes:
+      - npm-data:/data
+      - npm-ssl:/etc/letsencrypt
+    networks:
+      - lotto-network
+    restart: unless-stopped
+    depends_on:
+      - frontend-app
+      - api-gateway
+
+  # 2. React 프론트엔드 (Nginx)
+  frontend-app:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend-app
+    expose:
+      - "80"
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 3. API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    expose:
+      - "8000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis-session
+      - REDIS_PORT=6379
+    depends_on:
+      - redis-session
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 4. 데이터 수집 서비스
+  data-collector-service:
+    build:
+      context: ./services/data-collector
+      dockerfile: Dockerfile
+    container_name: data-collector-service
+    expose:
+      - "8001"
+    environment:
+      - FLASK_ENV=production
+      - MYSQL_HOST=mysql-db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    depends_on:
+      - mysql-db
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 5. 통계 분석 서비스
+  statistics-service:
+    build:
+      context: ./services/statistics
+      dockerfile: Dockerfile
+    container_name: statistics-service
+    expose:
+      - "8002"
+    environment:
+      - FLASK_ENV=production
+      - MYSQL_HOST=mysql-db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - REDIS_HOST=redis-session
+      - REDIS_PORT=6379
+    depends_on:
+      - mysql-db
+      - redis-session
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 6. ML 예측 서비스
+  ml-prediction-service:
+    build:
+      context: ./services/ml-prediction
+      dockerfile: Dockerfile
+    container_name: ml-prediction-service
+    expose:
+      - "8003"
+    environment:
+      - FLASK_ENV=production
+      - MYSQL_HOST=mysql-db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - REDIS_HOST=redis-session
+      - REDIS_PORT=6379
+    depends_on:
+      - mysql-db
+      - redis-session
+    volumes:
+      - ./services/ml-prediction/models:/app/models
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 7. 사용자 관리 서비스 (Spring Boot)
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    expose:
+      - "8004"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
+      - SPRING_REDIS_HOST=redis-session
+      - SPRING_REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - mysql-db
+      - redis-session
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 8. Redis 세션 서버
+  redis-session:
+    image: redis:7-alpine
+    container_name: redis-session
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - lotto-network
+    restart: unless-stopped
+
+  # 9. MySQL 데이터베이스
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-db
+    expose:
+      - "3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - lotto-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
